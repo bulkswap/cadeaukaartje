@@ -1,27 +1,19 @@
-import { kv } from '@vercel/kv';
-
-export default async function handler(req, res) {
+export default function handler(req, res) {
   const { id } = req.query;
+  if (!id) return res.status(400).json({ error: "no id" });
 
-  if (!id) {
-    return res.status(400).json({ error: "No id provided" });
-  }
+  const data = globalThis[`link_${id}`];
+  if (!data) return res.status(404).json({ error: "not found" });
 
-  const data = await kv.get(`link:${id}`);
-
-  if (!data) {
-    return res.status(404).json({ error: "Link not found" });
-  }
-
-  // Eerste keer openen? → nu opslaan (start timer)
+  // Eerste klik → timer starten
   if (data.firstOpened === null) {
     data.firstOpened = Date.now();
-    await kv.set(`link:${id}`, data);
+    globalThis[`link_${id}`] = data;
   }
 
-  // 7 minuten na eerste opening?
+  // 7 minuten voorbij?
   if (Date.now() > data.firstOpened + 7 * 60 * 1000) {
-    return res.status(410).json({ expired: true, message: "Link expired after 7 minutes from first open" });
+    return res.status(410).json({ expired: true });
   }
 
   res.json(data);
